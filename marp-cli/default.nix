@@ -1,4 +1,7 @@
-{ stdenv, system, ... }:
+{ stdenv
+, system
+, autoPatchelfHook
+}:
 
 let
   data = builtins.fromJSON (builtins.readFile ./data/${system}.json);
@@ -13,14 +16,31 @@ stdenv.mkDerivation rec {
     sha256 = data.hash;
   };
 
-  phases = [ "unpackPhase" "installPhase" ];
+  # patchelf downloaded binaries
+  nativeBuildInputs = [ autoPatchelfHook ];
+  dontStrip = true;
+  dontStripHost = true;
+  dontStripTarget = true;
+  dontPruneLibtoolFiles = true;
+
+  buildInputs = [ stdenv.cc.cc.lib ];
+
+  phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
 
   unpackPhase = ''
+    runHook preUnpack
+    
     tar -xzf $src
+    
+    runHook postUnpack
   '';
 
   installPhase = ''
+    runHook preInstall
+    
     mkdir -p $out/bin
     cp marp $out/bin/
+
+    runHook postInstall
   '';
 }
